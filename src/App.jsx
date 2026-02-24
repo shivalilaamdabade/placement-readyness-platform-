@@ -12,12 +12,20 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/practice" element={<Practice />} />
-          <Route path="/assessments" element={<Assessments />} />
-          <Route path="/resources" element={<Resources />} />
-          <Route path="/profile" element={<Profile />} />
+        <Route path="/dashboard" element={<Layout />}>
+          <Route index element={<Dashboard />} />
+        </Route>
+        <Route path="/practice" element={<Layout />}>
+          <Route index element={<Practice />} />
+        </Route>
+        <Route path="/assessments" element={<Layout />}>
+          <Route index element={<Assessments />} />
+        </Route>
+        <Route path="/resources" element={<Layout />}>
+          <Route index element={<Resources />} />
+        </Route>
+        <Route path="/profile" element={<Layout />}>
+          <Route index element={<Profile />} />
         </Route>
       </Routes>
     </Router>
