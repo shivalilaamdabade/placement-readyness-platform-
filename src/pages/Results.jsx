@@ -1,17 +1,20 @@
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   Target, 
   CheckCircle, 
   Calendar, 
   HelpCircle, 
   ArrowLeft, 
-  Save,
+  Copy,
+  Download,
   TrendingUp,
-  Clock,
-  BookOpen
+  AlertCircle,
+  CheckSquare,
+  BookOpen,
+  Lightbulb
 } from 'lucide-react';
-import { getAnalysisById } from '../services/storageService';
+import { getAnalysisById, updateAnalysis } from '../services/storageService';
 import { getReadinessLevel, getReadinessColor } from '../utils/readinessScore';
 
 // Circular Progress Component
@@ -42,7 +45,7 @@ function CircularProgress({ value, max, size = 180, strokeWidth = 14 }) {
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-1000 ease-out"
+          className="transition-all duration-500 ease-out"
         />
       </svg>
       <div className="absolute flex flex-col items-center">
@@ -53,33 +56,191 @@ function CircularProgress({ value, max, size = 180, strokeWidth = 14 }) {
   );
 }
 
+// Skill Toggle Component
+function SkillToggle({ skill, confidence, onToggle }) {
+  const isKnow = confidence === 'know';
+  
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+        isKnow 
+          ? 'bg-green-100 text-green-700' 
+          : 'bg-amber-100 text-amber-700'
+      }`}>
+        {skill}
+      </span>
+      <button
+        onClick={onToggle}
+        className={`px-2 py-1 text-xs rounded transition-colors ${
+          isKnow
+            ? 'bg-green-500 text-white hover:bg-green-600'
+            : 'bg-amber-500 text-white hover:bg-amber-600'
+        }`}
+      >
+        {isKnow ? 'I know this' : 'Need practice'}
+      </button>
+    </div>
+  );
+}
+
 function Results() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [skillConfidence, setSkillConfidence] = useState({});
+  const [liveScore, setLiveScore] = useState(0);
+
+  // Calculate live score based on skill confidence
+  const calculateLiveScore = useCallback((baseScore, confidenceMap, allSkills) => {
+    let adjustment = 0;
+    allSkills.forEach(skill => {
+      if (confidenceMap[skill] === 'know') {
+        adjustment += 2;
+      } else if (confidenceMap[skill] === 'practice') {
+        adjustment -= 2;
+      }
+    });
+    return Math.max(0, Math.min(100, baseScore + adjustment));
+  }, []);
 
   useEffect(() => {
     const historyId = searchParams.get('id');
     
     if (historyId) {
-      // Load from history
       const savedAnalysis = getAnalysisById(historyId);
       if (savedAnalysis) {
         setAnalysis(savedAnalysis);
+        const initialConfidence = savedAnalysis.skillConfidenceMap || {};
+        // Initialize missing skills to 'practice'
+        savedAnalysis.allSkills.forEach(skill => {
+          if (!initialConfidence[skill]) {
+            initialConfidence[skill] = 'practice';
+          }
+        });
+        setSkillConfidence(initialConfidence);
+        setLiveScore(calculateLiveScore(savedAnalysis.readinessScore, initialConfidence, savedAnalysis.allSkills));
       } else {
         navigate('/history');
       }
     } else if (location.state?.analysis) {
-      // Use passed analysis data
-      setAnalysis(location.state.analysis);
+      const newAnalysis = location.state.analysis;
+      setAnalysis(newAnalysis);
+      const initialConfidence = {};
+      newAnalysis.allSkills.forEach(skill => {
+        initialConfidence[skill] = 'practice';
+      });
+      setSkillConfidence(initialConfidence);
+      setLiveScore(calculateLiveScore(newAnalysis.readinessScore, initialConfidence, newAnalysis.allSkills));
     } else {
-      // No data available
       navigate('/analyze');
     }
     setLoading(false);
-  }, [location.state, searchParams, navigate]);
+  }, [location.state, searchParams, navigate, calculateLiveScore]);
+
+  // Save confidence changes to localStorage
+  const saveConfidenceChanges = useCallback((newConfidence, newScore) => {
+    if (analysis?.id) {
+      updateAnalysis(analysis.id, {
+        skillConfidenceMap: newConfidence,
+        adjustedReadinessScore: newScore
+      });
+    }
+  }, [analysis]);
+
+  const handleSkillToggle = (skill) => {
+    const newConfidence = {
+      ...skillConfidence,
+      [skill]: skillConfidence[skill] === 'know' ? 'practice' : 'know'
+    };
+    setSkillConfidence(newConfidence);
+    
+    const newScore = calculateLiveScore(analysis.readinessScore, newConfidence, analysis.allSkills);
+    setLiveScore(newScore);
+    
+    saveConfidenceChanges(newConfidence, newScore);
+  };
+
+  // Export functions
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text);
+    alert(`${label} copied to clipboard!`);
+  };
+
+  const exportPlan = () => {
+    const planText = analysis.plan.map(day => 
+      `${day.day}: ${day.focus}\n${day.tasks.map(t => `  - ${t}`).join('\n')}`
+    ).join('\n\n');
+    copyToClipboard(planText, '7-Day Plan');
+  };
+
+  const exportChecklist = () => {
+    const checklistText = analysis.checklist.map(round => 
+      `${round.round}\n${round.items.map(i => `  [ ] ${i}`).join('\n')}`
+    ).join('\n\n');
+    copyToClipboard(checklistText, 'Round Checklist');
+  };
+
+  const exportQuestions = () => {
+    const questionsText = analysis.questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n');
+    copyToClipboard(questionsText, 'Interview Questions');
+  };
+
+  const downloadTXT = () => {
+    const content = `PLACEMENT READINESS ANALYSIS
+=============================
+
+Company: ${analysis.company}
+Role: ${analysis.role}
+Date: ${new Date(analysis.createdAt).toLocaleDateString()}
+Readiness Score: ${liveScore}/100
+
+SKILLS EXTRACTED
+================
+${Object.entries(analysis.extractedSkills).map(([key, cat]) => 
+  `${cat.name}:\n${cat.skills.map(s => `  - ${s} (${skillConfidence[s] === 'know' ? '✓ Know' : '○ Practice'})`).join('\n')}`
+).join('\n\n')}
+
+7-DAY PREPARATION PLAN
+======================
+${analysis.plan.map(day => 
+  `${day.day}: ${day.focus}\n${day.tasks.map(t => `  - ${t}`).join('\n')}`
+).join('\n\n')}
+
+ROUND-WISE CHECKLIST
+====================
+${analysis.checklist.map(round => 
+  `${round.round}\n${round.items.map(i => `  [ ] ${i}`).join('\n')}`
+).join('\n\n')}
+
+INTERVIEW QUESTIONS
+===================
+${analysis.questions.map((q, i) => `${i + 1}. ${q}`).join('\n\n')}
+
+WEAK AREAS TO FOCUS ON
+======================
+${getWeakSkills().map(s => `  - ${s}`).join('\n') || '  None identified'}
+`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `placement-analysis-${analysis.company.replace(/\s+/g, '-').toLowerCase()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Get weak skills (top 3 practice-marked)
+  const getWeakSkills = () => {
+    return Object.entries(skillConfidence)
+      .filter(([_, confidence]) => confidence === 'practice')
+      .map(([skill]) => skill)
+      .slice(0, 3);
+  };
 
   if (loading) {
     return (
@@ -93,8 +254,9 @@ function Results() {
     return null;
   }
 
-  const readinessLevel = getReadinessLevel(analysis.readinessScore);
-  const readinessColor = getReadinessColor(analysis.readinessScore);
+  const readinessLevel = getReadinessLevel(liveScore);
+  const readinessColor = getReadinessColor(liveScore);
+  const weakSkills = getWeakSkills();
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -123,7 +285,7 @@ function Results() {
       <div className="bg-white rounded-xl border border-gray-200 p-8 mb-8">
         <div className="flex flex-col md:flex-row items-center gap-8">
           <div className="flex-shrink-0">
-            <CircularProgress value={analysis.readinessScore} max={100} />
+            <CircularProgress value={liveScore} max={100} />
           </div>
           <div className="flex-1 text-center md:text-left">
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Readiness Score</h3>
@@ -133,38 +295,75 @@ function Results() {
             <p className="text-gray-600">
               Based on {analysis.allSkills.length} skills detected across {Object.keys(analysis.extractedSkills).length} categories
             </p>
-            {analysis.jdText.length > 800 && (
-              <span className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-                <CheckCircle className="w-4 h-4" />
-                Detailed JD bonus applied
-              </span>
-            )}
+            <p className="text-sm text-gray-500 mt-2">
+              Base: {analysis.readinessScore} | Adjusted: {liveScore} 
+              <span className="text-xs ml-2">(updates as you mark skills)</span>
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Skills Extracted */}
+      {/* Skills Extracted with Toggles */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Target className="w-5 h-5 text-primary-500" />
           Key Skills Extracted
+          <span className="text-sm font-normal text-gray-500 ml-2">(Click to toggle confidence)</span>
         </h3>
         <div className="space-y-4">
           {Object.entries(analysis.extractedSkills).map(([key, category]) => (
             <div key={key}>
               <h4 className="text-sm font-medium text-gray-700 mb-2">{category.name}</h4>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {category.skills.map((skill, index) => (
-                  <span
+                  <SkillToggle
                     key={index}
-                    className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-sm font-medium"
-                  >
-                    {skill}
-                  </span>
+                    skill={skill}
+                    confidence={skillConfidence[skill] || 'practice'}
+                    onToggle={() => handleSkillToggle(skill)}
+                  />
                 ))}
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Export Tools */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Download className="w-5 h-5 text-primary-500" />
+          Export Tools
+        </h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={exportPlan}
+            className="px-4 py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors flex items-center gap-2"
+          >
+            <Calendar className="w-4 h-4" />
+            Copy 7-Day Plan
+          </button>
+          <button
+            onClick={exportChecklist}
+            className="px-4 py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors flex items-center gap-2"
+          >
+            <CheckSquare className="w-4 h-4" />
+            Copy Round Checklist
+          </button>
+          <button
+            onClick={exportQuestions}
+            className="px-4 py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors flex items-center gap-2"
+          >
+            <HelpCircle className="w-4 h-4" />
+            Copy 10 Questions
+          </button>
+          <button
+            onClick={downloadTXT}
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Download as TXT
+          </button>
         </div>
       </div>
 
@@ -218,7 +417,7 @@ function Results() {
       </div>
 
       {/* Interview Questions */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <HelpCircle className="w-5 h-5 text-primary-500" />
           Likely Interview Questions
@@ -240,8 +439,39 @@ function Results() {
         </div>
       </div>
 
+      {/* Action Next Box */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-6 mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Lightbulb className="w-5 h-5 text-amber-600" />
+          Action Next
+        </h3>
+        
+        {weakSkills.length > 0 ? (
+          <>
+            <p className="text-gray-700 mb-3">Top skills to focus on:</p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {weakSkills.map((skill, index) => (
+                <span key={index} className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-700 mb-3">Great! You have marked all skills as known.</p>
+        )}
+        
+        <div className="flex items-center gap-3 p-4 bg-white rounded-lg border border-amber-200">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-gray-900">Suggested next action:</p>
+            <p className="text-gray-600">Start Day 1 plan now. Focus on {weakSkills[0] || 'your basics'} first.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Action Buttons */}
-      <div className="flex gap-4 mt-8">
+      <div className="flex gap-4">
         <button
           onClick={() => navigate('/analyze')}
           className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-semibold transition-colors"

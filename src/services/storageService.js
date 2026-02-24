@@ -97,3 +97,34 @@ export function clearHistory() {
 export function getHistoryCount() {
   return getHistory().length;
 }
+
+/**
+ * Update an existing analysis entry
+ * @param {string} id - Analysis ID
+ * @param {Object} updates - Fields to update
+ * @returns {boolean} - Success status
+ */
+export function updateAnalysis(id, updates) {
+  try {
+    const history = getHistory();
+    const index = history.findIndex(item => item.id === id);
+    
+    if (index === -1) {
+      return false;
+    }
+    
+    // Merge updates into existing entry
+    history[index] = {
+      ...history[index],
+      ...updates,
+      id: history[index].id, // Preserve ID
+      createdAt: history[index].createdAt // Preserve creation date
+    };
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    return true;
+  } catch (error) {
+    console.error('Error updating localStorage:', error);
+    return false;
+  }
+}
