@@ -6,6 +6,9 @@ import Practice from './pages/Practice';
 import Assessments from './pages/Assessments';
 import Resources from './pages/Resources';
 import Profile from './pages/Profile';
+import Analyze from './pages/Analyze';
+import Results from './pages/Results';
+import History from './pages/History';
 
 function App() {
   return (
@@ -26,6 +29,15 @@ function App() {
         </Route>
         <Route path="/profile" element={<Layout />}>
           <Route index element={<Profile />} />
+        </Route>
+        <Route path="/analyze" element={<Layout />}>
+          <Route index element={<Analyze />} />
+        </Route>
+        <Route path="/results" element={<Layout />}>
+          <Route index element={<Results />} />
+        </Route>
+        <Route path="/history" element={<Layout />}>
+          <Route index element={<History />} />
         </Route>
       </Routes>
     </Router>

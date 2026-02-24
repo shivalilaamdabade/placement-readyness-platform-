@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Code, ClipboardList, BookOpen, User } from 'lucide-react';
+import { LayoutDashboard, Code, ClipboardList, BookOpen, User, Sparkles, History } from 'lucide-react';
 
 function Sidebar() {
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/analyze', label: 'JD Analysis', icon: Sparkles },
+    { path: '/history', label: 'History', icon: History },
     { path: '/practice', label: 'Practice', icon: Code },
     { path: '/assessments', label: 'Assessments', icon: ClipboardList },
     { path: '/resources', label: 'Resources', icon: BookOpen },

@@ -1,0 +1,128 @@
+/**
+ * Skill Extractor Utility
+ * Extracts skills from Job Description text using keyword matching
+ */
+
+const SKILL_CATEGORIES = {
+  coreCS: {
+    name: 'Core CS',
+    keywords: ['DSA', 'OOP', 'DBMS', 'OS', 'Networks', 'Data Structures', 'Algorithms', 'Operating Systems', 'Database Management']
+  },
+  languages: {
+    name: 'Languages',
+    keywords: ['Java', 'Python', 'JavaScript', 'TypeScript', 'C', 'C++', 'C#', 'Go', 'Golang', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin']
+  },
+  web: {
+    name: 'Web Development',
+    keywords: ['React', 'Next.js', 'Node.js', 'Express', 'REST', 'GraphQL', 'Angular', 'Vue', 'HTML', 'CSS', 'Bootstrap', 'Tailwind', 'Webpack', 'Vite']
+  },
+  data: {
+    name: 'Data & Databases',
+    keywords: ['SQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Elasticsearch', 'DynamoDB', 'Cassandra', 'Firebase', 'Prisma', 'Sequelize']
+  },
+  cloudDevOps: {
+    name: 'Cloud & DevOps',
+    keywords: ['AWS', 'Azure', 'GCP', 'Google Cloud', 'Docker', 'Kubernetes', 'CI/CD', 'Jenkins', 'GitHub Actions', 'Terraform', 'Ansible', 'Linux', 'Ubuntu', 'CentOS']
+  },
+  testing: {
+    name: 'Testing',
+    keywords: ['Selenium', 'Cypress', 'Playwright', 'JUnit', 'PyTest', 'Jest', 'Mocha', 'Chai', 'Testing Library', 'Postman', 'JMeter']
+  }
+};
+
+/**
+ * Extract skills from JD text
+ * @param {string} jdText - Job description text
+ * @returns {Object} - Extracted skills grouped by category
+ */
+export function extractSkills(jdText) {
+  if (!jdText || typeof jdText !== 'string') {
+    return { general: ['General fresher stack'] };
+  }
+
+  const normalizedText = jdText.toLowerCase();
+  const extractedSkills = {};
+  let hasAnySkill = false;
+
+  Object.entries(SKILL_CATEGORIES).forEach(([categoryKey, category]) => {
+    const foundSkills = [];
+    
+    category.keywords.forEach(keyword => {
+      // Match whole words or common variations
+      const patterns = [
+        `\\b${keyword.toLowerCase()}\\b`,
+        keyword.toLowerCase().replace(/\+/g, '\\+'),
+        keyword.toLowerCase().replace(/\./g, '\\.')
+      ];
+      
+      const isMatch = patterns.some(pattern => {
+        const regex = new RegExp(pattern, 'i');
+        return regex.test(normalizedText);
+      });
+      
+      if (isMatch && !foundSkills.includes(keyword)) {
+        foundSkills.push(keyword);
+      }
+    });
+
+    if (foundSkills.length > 0) {
+      extractedSkills[categoryKey] = {
+        name: category.name,
+        skills: foundSkills
+      };
+      hasAnySkill = true;
+    }
+  });
+
+  // If no skills detected, return general fresher stack
+  if (!hasAnySkill) {
+    return {
+      general: {
+        name: 'General Fresher Stack',
+        skills: ['General fresher stack']
+      }
+    };
+  }
+
+  return extractedSkills;
+}
+
+/**
+ * Get all detected skills as flat array
+ * @param {Object} extractedSkills - Output from extractSkills
+ * @returns {Array} - Flat array of all skills
+ */
+export function getAllSkills(extractedSkills) {
+  const allSkills = [];
+  
+  if (extractedSkills.general) {
+    return ['General fresher stack'];
+  }
+  
+  Object.values(extractedSkills).forEach(category => {
+    allSkills.push(...category.skills);
+  });
+  
+  return allSkills;
+}
+
+/**
+ * Get count of categories detected
+ * @param {Object} extractedSkills - Output from extractSkills
+ * @returns {number} - Number of categories
+ */
+export function getCategoryCount(extractedSkills) {
+  if (extractedSkills.general) return 0;
+  return Object.keys(extractedSkills).length;
+}
+
+/**
+ * Check if specific skill is present
+ * @param {Object} extractedSkills - Output from extractSkills
+ * @param {string} skill - Skill to check
+ * @returns {boolean}
+ */
+export function hasSkill(extractedSkills, skill) {
+  const allSkills = getAllSkills(extractedSkills);
+  return allSkills.some(s => s.toLowerCase() === skill.toLowerCase());
+}
