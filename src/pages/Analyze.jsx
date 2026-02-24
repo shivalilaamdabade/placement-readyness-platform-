@@ -15,21 +15,37 @@ function Analyze() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted');
     
     if (!formData.jdText.trim()) {
       alert('Please enter a job description');
       return;
     }
 
+    console.log('JD text is valid, starting analysis...');
     setIsAnalyzing(true);
     
-    // Process immediately - no artificial delay
-    const analysis = analyzeJD(formData);
-    saveAnalysis(analysis);
-    
-    // Navigate to results with the analysis data
-    navigate('/results', { state: { analysis } });
-    setIsAnalyzing(false);
+    try {
+      // Process immediately - no artificial delay
+      console.log('Calling analyzeJD...');
+      const analysis = analyzeJD(formData);
+      console.log('Analysis complete:', analysis);
+      
+      console.log('Saving analysis...');
+      const saved = saveAnalysis(analysis);
+      console.log('Analysis saved:', saved);
+      
+      // Navigate to results with the analysis data
+      console.log('Navigating to results...');
+      navigate('/results', { state: { analysis }, replace: false });
+      console.log('Navigation called');
+    } catch (error) {
+      console.error('Analysis error:', error);
+      console.error('Error stack:', error.stack);
+      alert('Error during analysis: ' + error.message + '\n\nCheck console (F12) for details.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleChange = (e) => {

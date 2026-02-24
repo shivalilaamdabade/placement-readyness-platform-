@@ -48,17 +48,23 @@ export function extractSkills(jdText) {
     const foundSkills = [];
     
     category.keywords.forEach(keyword => {
-      // Match whole words or common variations
-      const patterns = [
-        `\\b${keyword.toLowerCase()}\\b`,
-        keyword.toLowerCase().replace(/\+/g, '\\+'),
-        keyword.toLowerCase().replace(/\./g, '\\.')
-      ];
+      // Escape special regex characters in keyword
+      const escapedKeyword = keyword.toLowerCase()
+        .replace(/[.+*?^${}()|[\]\\]/g, '\\$&');
       
-      const isMatch = patterns.some(pattern => {
-        const regex = new RegExp(pattern, 'i');
-        return regex.test(normalizedText);
-      });
+      // Match whole words
+      const pattern = `\\b${escapedKeyword}\\b`;
+      
+      const isMatch = (() => {
+        try {
+          const regex = new RegExp(pattern, 'i');
+          return regex.test(normalizedText);
+        } catch (e) {
+          console.error('Regex error for keyword:', keyword, e);
+          // Fallback: simple includes check
+          return normalizedText.includes(keyword.toLowerCase());
+        }
+      })();
       
       if (isMatch && !foundSkills.includes(keyword)) {
         foundSkills.push(keyword);

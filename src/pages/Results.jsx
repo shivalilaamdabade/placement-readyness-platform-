@@ -14,7 +14,7 @@ import {
   BookOpen,
   Lightbulb
 } from 'lucide-react';
-import { getAnalysisById, updateAnalysis } from '../services/storageService';
+import { getAnalysisById, updateAnalysis, getHistory } from '../services/storageService';
 import { getReadinessLevel, getReadinessColor } from '../utils/readinessScore';
 
 // Circular Progress Component
@@ -106,37 +106,47 @@ function Results() {
   }, []);
 
   useEffect(() => {
-    const historyId = searchParams.get('id');
-    
-    if (historyId) {
-      const savedAnalysis = getAnalysisById(historyId);
-      if (savedAnalysis) {
-        setAnalysis(savedAnalysis);
-        const initialConfidence = savedAnalysis.skillConfidenceMap || {};
-        // Initialize missing skills to 'practice'
-        savedAnalysis.allSkills.forEach(skill => {
-          if (!initialConfidence[skill]) {
-            initialConfidence[skill] = 'practice';
-          }
+    const loadAnalysis = () => {
+      const historyId = searchParams.get('id');
+      
+      if (historyId) {
+        const savedAnalysis = getAnalysisById(historyId);
+        if (savedAnalysis) {
+          setAnalysis(savedAnalysis);
+          const initialConfidence = savedAnalysis.skillConfidenceMap || {};
+          // Initialize missing skills to 'practice'
+          savedAnalysis.allSkills.forEach(skill => {
+            if (!initialConfidence[skill]) {
+              initialConfidence[skill] = 'practice';
+            }
+          });
+          setSkillConfidence(initialConfidence);
+          setLiveScore(calculateLiveScore(savedAnalysis.readinessScore, initialConfidence, savedAnalysis.allSkills));
+        } else {
+          navigate('/history');
+        }
+      } else if (location.state?.analysis) {
+        const newAnalysis = location.state.analysis;
+        setAnalysis(newAnalysis);
+        const initialConfidence = {};
+        newAnalysis.allSkills.forEach(skill => {
+          initialConfidence[skill] = 'practice';
         });
         setSkillConfidence(initialConfidence);
-        setLiveScore(calculateLiveScore(savedAnalysis.readinessScore, initialConfidence, savedAnalysis.allSkills));
+        setLiveScore(calculateLiveScore(newAnalysis.readinessScore, initialConfidence, newAnalysis.allSkills));
       } else {
-        navigate('/history');
+        // Check if there's any analysis in history to show
+        const history = getHistory();
+        if (history.length > 0) {
+          navigate('/history');
+        } else {
+          navigate('/analyze');
+        }
       }
-    } else if (location.state?.analysis) {
-      const newAnalysis = location.state.analysis;
-      setAnalysis(newAnalysis);
-      const initialConfidence = {};
-      newAnalysis.allSkills.forEach(skill => {
-        initialConfidence[skill] = 'practice';
-      });
-      setSkillConfidence(initialConfidence);
-      setLiveScore(calculateLiveScore(newAnalysis.readinessScore, initialConfidence, newAnalysis.allSkills));
-    } else {
-      navigate('/analyze');
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    loadAnalysis();
   }, [location.state, searchParams, navigate, calculateLiveScore]);
 
   // Save confidence changes to localStorage
