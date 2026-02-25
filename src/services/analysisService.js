@@ -5,6 +5,7 @@
 
 import { extractSkills, getAllSkills, hasSkill } from '../utils/skillExtractor';
 import { calculateReadinessScore } from '../utils/readinessScore';
+import { generateCompanyIntel } from '../utils/companyIntel';
 
 /**
  * Generate checklist based on detected skills
@@ -307,6 +308,7 @@ function generateQuestions(extractedSkills) {
 export function analyzeJD({ company, role, jdText }) {
   const extractedSkills = extractSkills(jdText);
   const readinessScore = calculateReadinessScore({ extractedSkills, company, role, jdText });
+  const companyIntel = generateCompanyIntel(company, jdText, extractedSkills);
   
   return {
     id: Date.now().toString(),
@@ -317,6 +319,7 @@ export function analyzeJD({ company, role, jdText }) {
     extractedSkills,
     allSkills: getAllSkills(extractedSkills),
     readinessScore,
+    companyIntel,
     checklist: generateChecklist(extractedSkills),
     plan: generateSevenDayPlan(extractedSkills),
     questions: generateQuestions(extractedSkills)

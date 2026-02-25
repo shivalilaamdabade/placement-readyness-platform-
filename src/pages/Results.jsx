@@ -12,7 +12,13 @@ import {
   AlertCircle,
   CheckSquare,
   BookOpen,
-  Lightbulb
+  Lightbulb,
+  Building2,
+  Users,
+  Briefcase,
+  Layers,
+  Clock,
+  MapPin
 } from 'lucide-react';
 import { getAnalysisById, updateAnalysis, getHistory } from '../services/storageService';
 import { getReadinessLevel, getReadinessColor } from '../utils/readinessScore';
@@ -312,6 +318,129 @@ ${getWeakSkills().map(s => `  - ${s}`).join('\n') || '  None identified'}
           </div>
         </div>
       </div>
+
+      {/* Company Intel Block */}
+      {analysis.companyIntel && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary-500" />
+            Company Intel
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Company Name */}
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2 text-gray-600 mb-1">
+                <Building2 className="w-4 h-4" />
+                <span className="text-sm">Company</span>
+              </div>
+              <p className="font-semibold text-gray-900">{analysis.companyIntel.name}</p>
+            </div>
+            
+            {/* Industry */}
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2 text-gray-600 mb-1">
+                <Briefcase className="w-4 h-4" />
+                <span className="text-sm">Industry</span>
+              </div>
+              <p className="font-semibold text-gray-900">{analysis.companyIntel.industry}</p>
+            </div>
+            
+            {/* Company Size */}
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2 text-gray-600 mb-1">
+                <Users className="w-4 h-4" />
+                <span className="text-sm">Size</span>
+              </div>
+              <p className="font-semibold text-gray-900">{analysis.companyIntel.size}</p>
+              <p className="text-xs text-gray-500">
+                {analysis.companyIntel.size === 'Enterprise' && '2000+ employees'}
+                {analysis.companyIntel.size === 'Mid-size' && '200-2000 employees'}
+                {analysis.companyIntel.size === 'Startup' && '<200 employees'}
+              </p>
+            </div>
+          </div>
+          
+          {/* Hiring Focus */}
+          <div className="p-4 bg-primary-50 rounded-lg mb-4">
+            <h4 className="font-semibold text-primary-900 mb-2 flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              Typical Hiring Focus: {analysis.companyIntel.hiringFocus.title}
+            </h4>
+            <p className="text-sm text-primary-700 mb-3">{analysis.companyIntel.hiringFocus.description}</p>
+            <div className="flex flex-wrap gap-2">
+              {analysis.companyIntel.hiringFocus.keyAreas.map((area, index) => (
+                <span key={index} className="px-2 py-1 bg-white text-primary-600 rounded text-xs font-medium">
+                  {area}
+                </span>
+              ))}
+            </div>
+          </div>
+          
+          {/* Demo Mode Note */}
+          {analysis.companyIntel.isDemo && (
+            <p className="text-xs text-gray-400 italic flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              Demo Mode: Company intel generated heuristically.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Round Mapping Timeline */}
+      {analysis.companyIntel?.roundMapping && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Layers className="w-5 h-5 text-primary-500" />
+            Interview Round Mapping
+          </h3>
+          
+          <div className="relative">
+            {/* Timeline line */}
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+            
+            {/* Rounds */}
+            <div className="space-y-6">
+              {analysis.companyIntel.roundMapping.map((round, index) => (
+                <div key={index} className="relative pl-12">
+                  {/* Timeline dot */}
+                  <div className="absolute left-2 w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">{round.round}</span>
+                  </div>
+                  
+                  {/* Round card */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h4 className="font-semibold text-gray-900">{round.name}</h4>
+                      <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs font-medium">
+                        {round.focus}
+                      </span>
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 mb-2">{round.description}</p>
+                    
+                    {/* Why it matters */}
+                    <div className="p-3 bg-amber-50 rounded border border-amber-100 mb-3">
+                      <p className="text-sm text-amber-800">
+                        <span className="font-medium">Why this round matters:</span> {round.whyItMatters}
+                      </p>
+                    </div>
+                    
+                    {/* Skills tested */}
+                    <div className="flex flex-wrap gap-2">
+                      {round.skillsTested.map((skill, skillIndex) => (
+                        <span key={skillIndex} className="px-2 py-1 bg-white text-gray-600 rounded text-xs border border-gray-200">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Skills Extracted with Toggles */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
