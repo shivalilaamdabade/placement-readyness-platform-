@@ -20,7 +20,7 @@ const SKILL_CATEGORIES = {
     name: 'Data & Databases',
     keywords: ['SQL', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Elasticsearch', 'DynamoDB', 'Cassandra', 'Firebase', 'Prisma', 'Sequelize']
   },
-  cloudDevOps: {
+  cloud: {
     name: 'Cloud & DevOps',
     keywords: ['AWS', 'Azure', 'GCP', 'Google Cloud', 'Docker', 'Kubernetes', 'CI/CD', 'Jenkins', 'GitHub Actions', 'Terraform', 'Ansible', 'Linux', 'Ubuntu', 'CentOS']
   },
@@ -80,13 +80,10 @@ export function extractSkills(jdText) {
     }
   });
 
-  // If no skills detected, return general fresher stack
+  // If no skills detected, return default skills in 'other' category
   if (!hasAnySkill) {
     return {
-      general: {
-        name: 'General Fresher Stack',
-        skills: ['General fresher stack']
-      }
+      other: ['Communication', 'Problem solving', 'Basic coding', 'Projects']
     };
   }
 
@@ -101,8 +98,8 @@ export function extractSkills(jdText) {
 export function getAllSkills(extractedSkills) {
   const allSkills = [];
   
-  if (extractedSkills.general) {
-    return ['General fresher stack'];
+  if (extractedSkills.other && extractedSkills.other.length > 0) {
+    return extractedSkills.other;
   }
   
   Object.values(extractedSkills).forEach(category => {

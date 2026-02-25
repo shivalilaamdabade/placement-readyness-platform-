@@ -10,13 +10,14 @@ import {
   TrendingUp,
   AlertCircle
 } from 'lucide-react';
-import { getHistory, deleteAnalysis, clearHistory } from '../services/storageService';
+import { getHistory, deleteAnalysis, clearHistory, hadCorruptedEntries, clearCorruptedFlag } from '../services/storageService';
 import { getReadinessColor } from '../utils/readinessScore';
 
 function HistoryPage() {
   const navigate = useNavigate();
   const [analyses, setAnalyses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCorruptedWarning, setShowCorruptedWarning] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -25,6 +26,13 @@ function HistoryPage() {
   const loadHistory = () => {
     const data = getHistory();
     setAnalyses(data);
+    
+    // Check for corrupted entries
+    if (hadCorruptedEntries()) {
+      setShowCorruptedWarning(true);
+      clearCorruptedFlag();
+    }
+    
     setLoading(false);
   };
 
@@ -55,7 +63,7 @@ function HistoryPage() {
     );
   }
 
-  if (analyses.length === 0) {
+  if (analyses.length === 0 && !showCorruptedWarning) {
     return (
       <div className="max-w-4xl mx-auto">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Analysis History</h2>
@@ -78,6 +86,18 @@ function HistoryPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Corrupted Entry Warning */}
+      {showCorruptedWarning && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-amber-800">
+              One saved entry couldn't be loaded. Create a new analysis.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -116,8 +136,8 @@ function HistoryPage() {
                   <h3 className="text-lg font-semibold text-gray-900">{analysis.company}</h3>
                   <span className="text-gray-400">•</span>
                   <p className="text-gray-600">{analysis.role}</p>
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${getReadinessColor(analysis.readinessScore)} bg-gray-50`}>
-                    {analysis.readinessScore}/100
+                  <span className={`px-3 py-1 rounded-full text-sm font-bold ${getReadinessColor(analysis.finalScore || analysis.baseScore || 0)} bg-gray-50`}>
+                    {analysis.finalScore || analysis.baseScore || 0}/100
                   </span>
                 </div>
                 

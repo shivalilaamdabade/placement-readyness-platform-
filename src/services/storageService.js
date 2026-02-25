@@ -3,16 +3,42 @@
  * Handles localStorage operations for analysis history
  */
 
-const STORAGE_KEY = 'placement_readiness_history';
+import { validateAnalysisEntry, createAnalysisEntry, recalculateFinalScore } from '../utils/schema';
+
+const STORAGE_KEY = 'placement_readiness_history_v2';
 
 /**
  * Get all analysis history from localStorage
- * @returns {Array} - Array of analysis entries
+ * Validates entries and filters out corrupted ones
+ * @returns {Array} - Array of valid analysis entries
  */
 export function getHistory() {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    
+    const validEntries = [];
+    const corruptedCount = 0;
+    
+    parsed.forEach(entry => {
+      const validation = validateAnalysisEntry(entry);
+      if (validation.isValid && validation.normalized) {
+        validEntries.push(validation.normalized);
+      } else {
+        corruptedCount++;
+        console.warn('Corrupted history entry skipped:', validation.errors);
+      }
+    });
+    
+    // Store corrupted count for UI notification
+    if (corruptedCount > 0) {
+      localStorage.setItem(`${STORAGE_KEY}_corrupted`, corruptedCount.toString());
+    }
+    
+    return validEntries;
   } catch (error) {
     console.error('Error reading from localStorage:', error);
     return [];
@@ -20,16 +46,47 @@ export function getHistory() {
 }
 
 /**
+ * Check if there were corrupted entries
+ * @returns {boolean}
+ */
+export function hadCorruptedEntries() {
+  const count = localStorage.getItem(`${STORAGE_KEY}_corrupted`);
+  return count && parseInt(count) > 0;
+}
+
+/**
+ * Clear corrupted entry flag
+ */
+export function clearCorruptedFlag() {
+  localStorage.removeItem(`${STORAGE_KEY}_corrupted`);
+}
+
+/**
  * Save analysis entry to localStorage
+ * Validates and normalizes before saving
  * @param {Object} analysis - Analysis result object
  * @returns {boolean} - Success status
  */
 export function saveAnalysis(analysis) {
   try {
+    // Validate and normalize the entry
+    const validation = validateAnalysisEntry(analysis);
+    let entryToSave;
+    
+    if (validation.isValid && validation.normalized) {
+      entryToSave = validation.normalized;
+    } else if (validation.normalized) {
+      // Use normalized version even if validation had minor errors
+      entryToSave = validation.normalized;
+    } else {
+      console.error('Cannot save invalid analysis:', validation.errors);
+      return false;
+    }
+    
     const history = getHistory();
     
     // Add new entry at the beginning
-    const updatedHistory = [analysis, ...history];
+    const updatedHistory = [entryToSave, ...history];
     
     // Keep only last 50 entries to prevent storage overflow
     if (updatedHistory.length > 50) {
@@ -100,6 +157,7 @@ export function getHistoryCount() {
 
 /**
  * Update an existing analysis entry
+ * Validates and recalculates score if skillConfidenceMap changed
  * @param {string} id - Analysis ID
  * @param {Object} updates - Fields to update
  * @returns {boolean} - Success status
@@ -114,12 +172,27 @@ export function updateAnalysis(id, updates) {
     }
     
     // Merge updates into existing entry
-    history[index] = {
+    let updatedEntry = {
       ...history[index],
       ...updates,
       id: history[index].id, // Preserve ID
-      createdAt: history[index].createdAt // Preserve creation date
+      createdAt: history[index].createdAt, // Preserve creation date
+      updatedAt: new Date().toISOString() // Update timestamp
     };
+    
+    // Recalculate finalScore if skillConfidenceMap was updated
+    if (updates.skillConfidenceMap) {
+      updatedEntry = recalculateFinalScore(updatedEntry);
+    }
+    
+    // Validate the updated entry
+    const validation = validateAnalysisEntry(updatedEntry);
+    if (!validation.normalized) {
+      console.error('Updated entry is invalid:', validation.errors);
+      return false;
+    }
+    
+    history[index] = validation.normalized;
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
     return true;

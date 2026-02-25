@@ -20,7 +20,7 @@ import {
   Clock,
   MapPin
 } from 'lucide-react';
-import { getAnalysisById, updateAnalysis, getHistory } from '../services/storageService';
+import { getAnalysisById, updateAnalysis, getHistory, hadCorruptedEntries, clearCorruptedFlag } from '../services/storageService';
 import { getReadinessLevel, getReadinessColor } from '../utils/readinessScore';
 
 // Circular Progress Component
@@ -97,6 +97,7 @@ function Results() {
   const [loading, setLoading] = useState(true);
   const [skillConfidence, setSkillConfidence] = useState({});
   const [liveScore, setLiveScore] = useState(0);
+  const [showCorruptedWarning, setShowCorruptedWarning] = useState(false);
 
   // Calculate live score based on skill confidence
   const calculateLiveScore = useCallback((baseScore, confidenceMap, allSkills) => {
@@ -150,6 +151,12 @@ function Results() {
         }
       }
       setLoading(false);
+      
+      // Check for corrupted entries warning
+      if (hadCorruptedEntries()) {
+        setShowCorruptedWarning(true);
+        clearCorruptedFlag();
+      }
     };
 
     loadAnalysis();
@@ -276,6 +283,18 @@ ${getWeakSkills().map(s => `  - ${s}`).join('\n') || '  None identified'}
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Corrupted Entry Warning */}
+      {showCorruptedWarning && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-amber-800">
+              One saved entry couldn't be loaded. Create a new analysis.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -312,7 +331,7 @@ ${getWeakSkills().map(s => `  - ${s}`).join('\n') || '  None identified'}
               Based on {analysis.allSkills.length} skills detected across {Object.keys(analysis.extractedSkills).length} categories
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              Base: {analysis.readinessScore} | Adjusted: {liveScore} 
+              Base: {analysis.baseScore} | Final: {liveScore} 
               <span className="text-xs ml-2">(updates as you mark skills)</span>
             </p>
           </div>
@@ -450,11 +469,11 @@ ${getWeakSkills().map(s => `  - ${s}`).join('\n') || '  None identified'}
           <span className="text-sm font-normal text-gray-500 ml-2">(Click to toggle confidence)</span>
         </h3>
         <div className="space-y-4">
-          {Object.entries(analysis.extractedSkills).map(([key, category]) => (
+          {Object.entries(analysis.extractedSkills).map(([key, skills]) => (
             <div key={key}>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">{category.name}</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-2 capitalize">{key}</h4>
               <div className="flex flex-wrap gap-3">
-                {category.skills.map((skill, index) => (
+                {Array.isArray(skills) && skills.map((skill, index) => (
                   <SkillToggle
                     key={index}
                     skill={skill}

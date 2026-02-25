@@ -3,9 +3,10 @@
  * Generates outputs from detected skills
  */
 
-import { extractSkills, getAllSkills, hasSkill } from '../utils/skillExtractor';
+import { extractSkills, hasSkill } from '../utils/skillExtractor';
 import { calculateReadinessScore } from '../utils/readinessScore';
 import { generateCompanyIntel } from '../utils/companyIntel';
+import { createAnalysisEntry, normalizeSkillCategories, getAllSkillsFromCategories } from '../utils/schema';
 
 /**
  * Generate checklist based on detected skills
@@ -307,21 +308,27 @@ function generateQuestions(extractedSkills) {
  */
 export function analyzeJD({ company, role, jdText }) {
   const extractedSkills = extractSkills(jdText);
-  const readinessScore = calculateReadinessScore({ extractedSkills, company, role, jdText });
-  const companyIntel = generateCompanyIntel(company, jdText, extractedSkills);
+  const normalizedSkills = normalizeSkillCategories(extractedSkills);
+  const allSkills = getAllSkillsFromCategories(normalizedSkills);
+  const readinessScore = calculateReadinessScore({ extractedSkills: normalizedSkills, company, role, jdText });
+  const companyIntel = generateCompanyIntel(company, jdText, normalizedSkills);
   
-  return {
+  // Create raw analysis data
+  const rawAnalysis = {
     id: Date.now().toString(),
     createdAt: new Date().toISOString(),
-    company: company || 'Unknown Company',
-    role: role || 'Unknown Role',
+    company: company || '',
+    role: role || '',
     jdText,
-    extractedSkills,
-    allSkills: getAllSkills(extractedSkills),
-    readinessScore,
-    companyIntel,
-    checklist: generateChecklist(extractedSkills),
-    plan: generateSevenDayPlan(extractedSkills),
-    questions: generateQuestions(extractedSkills)
+    extractedSkills: normalizedSkills,
+    allSkills,
+    baseScore: readinessScore,
+    roundMapping: companyIntel.roundMapping,
+    checklist: generateChecklist(normalizedSkills),
+    plan7Days: generateSevenDayPlan(normalizedSkills),
+    questions: generateQuestions(normalizedSkills)
   };
+  
+  // Return standardized entry
+  return createAnalysisEntry(rawAnalysis);
 }

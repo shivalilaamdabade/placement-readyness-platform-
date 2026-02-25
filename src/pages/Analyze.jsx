@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Building2, Briefcase, Sparkles } from 'lucide-react';
+import { FileText, Building2, Briefcase, Sparkles, AlertTriangle } from 'lucide-react';
 import { analyzeJD } from '../services/analysisService';
 import { saveAnalysis } from '../services/storageService';
 
@@ -12,6 +12,7 @@ function Analyze() {
     jdText: ''
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,6 +55,11 @@ function Analyze() {
       ...prev,
       [name]: value
     }));
+    
+    // Show warning if JD is too short
+    if (name === 'jdText') {
+      setShowWarning(value.length > 0 && value.length < 200);
+    }
   };
 
   return (
@@ -105,7 +111,7 @@ function Analyze() {
           <div>
             <label htmlFor="jdText" className="block text-sm font-medium text-gray-700 mb-2">
               <FileText className="w-4 h-4 inline mr-2" />
-              Job Description
+              Job Description <span className="text-red-500">*</span>
             </label>
             <textarea
               id="jdText"
@@ -114,13 +120,26 @@ function Analyze() {
               onChange={handleChange}
               rows={12}
               placeholder="Paste the full job description here. Include requirements, skills, and responsibilities for better analysis..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none ${
+                showWarning ? 'border-amber-400 bg-amber-50' : 'border-gray-200'
+              }`}
+              required
             />
             <p className="mt-2 text-sm text-gray-500">
               {formData.jdText.length} characters {formData.jdText.length > 800 && (
                 <span className="text-green-600 font-medium">✓ Detailed JD detected</span>
               )}
             </p>
+            
+            {/* Warning for short JD */}
+            {showWarning && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800">
+                  This JD is too short to analyze deeply. Paste full JD for better output.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Submit Button */}
