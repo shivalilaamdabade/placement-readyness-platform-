@@ -9,6 +9,8 @@ import Profile from './pages/Profile';
 import Analyze from './pages/Analyze';
 import Results from './pages/Results';
 import History from './pages/History';
+import TestChecklist from './pages/TestChecklist';
+import Ship from './pages/Ship';
 
 function App() {
   return (
@@ -38,6 +40,12 @@ function App() {
         </Route>
         <Route path="/history" element={<Layout />}>
           <Route index element={<History />} />
+        </Route>
+        <Route path="/test" element={<Layout />}>
+          <Route index element={<TestChecklist />} />
+        </Route>
+        <Route path="/ship" element={<Layout />}>
+          <Route index element={<Ship />} />
         </Route>
       </Routes>
     </Router>
